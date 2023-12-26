@@ -1,0 +1,94 @@
+#!/bin/bash
+logo(){
+clear
+echo "
+ ++++++++++++++++++++++++++++++++++
+ +......Free DDNS Cloudflare......+
+ +..Copyright @ 2023 ... tactu .. +
+ ++++++++++++++++++++++++++++++++++
+"
+echo
+}
+
+# CHANGE THESE
+auth_email="your email cloudflare"
+auth_key="your api global" # found in cloudflare account settings
+zone_name="domain.com" # add your domain
+record_name="subdomain.domain.com" # add your subdomain
+start="no" #After changing the credentials above, change to "yes"
+
+# MAYBE CHANGE THESE
+ip=$(curl -6 -s https://ifconfig.me)
+ip_file="/opt/cloudflare/ip6.txt"
+id_file="/opt/cloudflare/cloudflare.ids"
+log_file="/opt/cloudflare/cloudflare.log"
+
+if [ ! -d "/opt/cloudflare/" ]; then
+mkdir /opt/cloudflare
+fi
+
+if [ ! -e "/usr/bin/ipv6-ddns-cloudflare" ]; then
+ln -s /opt/cloudflare/ipv6-ddns-cloudflare /usr/bin/ipv6-ddns-cloudflare  >/dev/null 2>&1
+fi
+
+#add crontab
+if [ ! -e "/etc/cron.d/ipv6-ddns-cloudflare" ]; then
+echo "PATH=/usr/local/sbin:/usr/sbin:/sbin:/usr/local/bin:/usr/bin:/bin
+* * * * * root /usr/bin/ipv6-ddns-cloudflare >/dev/null 2>&1
+@reboot root /usr/bin/ipv6-ddns-cloudflare >/dev/null 2>&1
+" tee -a /etc/cron.d/ipv6-ddns-cloudflare
+fi
+
+if [ "$start" = "no" ]; then
+logo
+echo "The application is not configured, please configure the credentials above" 
+exit
+fi
+
+# LOGGER
+log() {
+    if [ "$1" ]; then
+        echo -e "[$(date)] - $1" >> $log_file
+    fi
+}
+
+# SCRIPT START
+log "Check Initiated"
+
+if [ -f $ip_file ]; then
+    old_ip=$(cat $ip_file)
+    if [ $ip == $old_ip ]; then
+logo
+        echo "IP has not changed."
+        exit 0
+    fi
+fi
+
+if [ -f $id_file ] && [ $(wc -l $id_file | cut -d " " -f 1) == 2 ]; then
+    zone_identifier=$(head -1 $id_file)
+    record_identifier=$(tail -1 $id_file)
+else
+    zone_identifier=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$zone_name" -H "X-Auth-Email: $auth_email" -H "X-Auth-Key: $auth_key" -H "Content-Type: application/json" | grep -Po '(?<="id":")[^"]*' | head -1 )
+    record_identifier=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$zone_identifier/dns_records?name=$record_name" -H "X-Auth-Email: $auth_email" -H "X-Auth-Key: $auth_key" -H "Content-Type: application/json"  | grep -Po '(?<="id":")[^"]*')
+    echo "zone $zone_identifier" | tee -a  $id_file
+    echo "record $record_identifier" | tee -a $id_file
+fi
+
+zone=$(cat  $id_file | grep zone | awk 'NR==1 {print $2}')
+record=$(cat  $id_file | grep record | awk 'NR==1 {print $2}')
+
+update=$(curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$zone/dns_records/$record" -H "X-Auth-Email: $auth_email" -H "X-Auth-Key: $auth_key" -H "Content-Type: application/json" --data "{\"id\":\"$zone_identifier\",\"type\":\"AAAA\",\"name\":\"$record_name\",\"content\":\"$ip\"}")
+
+if [[ $update == *"\"success\":false"* ]]; then
+logo
+    message="API UPDATE FAILED. DUMPING RESULTS:\n$update"
+    log "$message"
+    echo -e "$message"
+    exit 1 
+else
+logo
+    message="IP changed to: $ip"
+    echo "$ip" > $ip_file
+    log "$message"
+    echo "$message"
+fi
