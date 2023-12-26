@@ -1,0 +1,57 @@
+#!/bin/bash
+
+logo(){
+clear
+echo "
+ ++++++++++++++++++++++++++++++++++
+ +......Free DDNS Cloudflare......+
+ +..Copyright @ 2023 ... tactu .. +
+ ++++++++++++++++++++++++++++++++++
+"
+echo
+}
+
+ipv4="https://raw.githubusercontent.com/tactu2023/ddns_cloudflare/main/ipv4-ddns-cloudflare"
+ipv6="https://raw.githubusercontent.com/tactu2023/ddns_cloudflare/main/ipv6-ddns-cloudflare"
+
+logo
+echo "Start install dynamic dns for cloudflare by tactu"
+if [ ! -f "/opt/cloudflare/ipv4-ddns-cloudflare" ]; then
+read -p 'do you also use IPv4 [y/n] ' v4
+else
+echo "IPv4 is already installed ..."
+fi
+if [ ! -f "/opt/cloudflare/ipv6-ddns-cloudflare" ]; then
+read -p 'do you also use IPv6 [y/n] ' v6
+else
+echo "IPv6 is already installed ..."
+fi
+
+if [ ! -d "/opt/cloudflare/" ]; then
+mkdir /opt/cloudflare
+fi
+
+if [ "$v4" = "y" ]; then
+curl -L -s $ipv4 -o /opt/cloudflare/ipv4-ddns-cloudflare
+chmod +x /opt/cloudflare/ipv4-ddns-cloudflare
+/opt/cloudflare/ipv4-ddns-cloudflare >/dev/null 2>&1
+fi
+
+
+if [ "$v6" = "y" ]; then
+curl -L -s $ipv6 -o /opt/cloudflare/ipv6-ddns-cloudflare
+chmod +x /opt/cloudflare/ipv6-ddns-cloudflare
+/opt/cloudflare/ipv6-ddns-cloudflare >/dev/null 2>&1
+fi
+
+if [ "$v4" = "y" ]||[ "$v6" = "y" ]; then
+logo
+echo "Please configure the files:"
+fi
+
+if [ "$v4" = "y" ]; then
+echo "- for Ipv4 : /opt/cloudflare/ipv4-ddns-cloudflare"
+fi
+if [ "$v6" = "y" ]; then
+echo "- for Ipv6 : /opt/cloudflare/ipv6-ddns-cloudflare"
+fi
