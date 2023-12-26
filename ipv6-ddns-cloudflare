@@ -36,7 +36,7 @@ if [ ! -e "/etc/cron.d/ipv6-ddns-cloudflare" ]; then
 echo "PATH=/usr/local/sbin:/usr/sbin:/sbin:/usr/local/bin:/usr/bin:/bin
 * * * * * root /usr/bin/ipv6-ddns-cloudflare >/dev/null 2>&1
 @reboot root /usr/bin/ipv6-ddns-cloudflare >/dev/null 2>&1
-" tee -a /etc/cron.d/ipv6-ddns-cloudflare
+" | tee -a /etc/cron.d/ipv6-ddns-cloudflare
 fi
 
 if [ "$start" = "no" ]; then
